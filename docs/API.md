@@ -14,7 +14,7 @@ The Pragati backend exposes a JSON API rooted at `/api`. All identifiers are sto
 
 ### GET `/api/health`
 - **Roles**: Public
-- **Description**: Readiness probe.
+- **Description**: Basic readiness probe.
 - **Response 200**
 ```json
 { "status": "ok" }
@@ -24,7 +24,8 @@ The Pragati backend exposes a JSON API rooted at `/api`. All identifiers are sto
 
 ### POST `/api/auth/login`
 - **Roles**: Public
-- **Body**
+- **Description**: Exchange credentials for a JWT used across protected routes.
+- **Request**
 ```json
 {
 	"email": "admin@mock.test",
@@ -47,114 +48,268 @@ The Pragati backend exposes a JSON API rooted at `/api`. All identifiers are sto
 
 ### POST `/api/auth/users`
 - **Roles**: `ADMIN`
-- **Body**
+- **Description**: Create an application user mapped to optional teacher/student records.
+- **Request**
 ```json
 {
-  "email": "teacher@mock.test",
-  "password": "TeacherPass123!",
-  "phoneNumber": "+15550001002",
-  "role": "TEACHER",
-  "schoolId": "1",
-  "teacherId": "7"
+	"email": "teacher@mock.test",
+	"password": "TeacherPass123!",
+	"phoneNumber": "+15550001002",
+	"role": "TEACHER",
+	"schoolId": "1",
+	"teacherId": "7"
 }
 ```
-- **Response 201**: Created user minus password hash.
+- **Response 201**
+```json
+{
+	"id": "12",
+	"email": "teacher@mock.test",
+	"phoneNumber": "+15550001002",
+	"role": "TEACHER",
+	"status": "active",
+	"studentId": null,
+	"teacherId": "7",
+	"schoolId": "1",
+	"createdAt": "2025-11-16T06:57:00.000Z",
+	"updatedAt": "2025-11-16T06:57:00.000Z"
+}
+```
 
 ### GET `/api/auth/users`
 - **Roles**: `ADMIN`, `GOVERNMENT`
+- **Description**: List all platform users.
 - **Response 200**
 ```json
 [
-  {
-    "id": "1",
-    "email": "admin@mock.test",
-    "phoneNumber": null,
-    "role": "ADMIN",
-    "status": "active",
-    "studentId": null,
-    "teacherId": null,
-    "schoolId": "1",
-    "createdAt": "2025-11-16T06:57:00.000Z"
-  }
+	{
+		"id": "1",
+		"email": "admin@mock.test",
+		"phoneNumber": null,
+		"role": "ADMIN",
+		"status": "active",
+		"studentId": null,
+		"teacherId": null,
+		"schoolId": "1",
+		"createdAt": "2025-11-16T06:57:00.000Z",
+		"updatedAt": "2025-11-16T06:57:00.000Z"
+	}
 ]
 ```
 
 ### PATCH `/api/auth/users/:id/status`
 - **Roles**: `ADMIN`
-- **Body**
+- **Description**: Block/unblock a user account.
+- **Request**
 ```json
 { "status": "blocked" }
 ```
-- **Response 200**: Updated user record (without password hash).
-
-## Core Entities (`/api/core`)
-
-All routes require an Authorization header. Teachers automatically scope to their `schoolId` and may only read individual students when they are the assigned homeroom (`classTeacherId`).
-
-### POST `/api/core/schools`
-Body `{ "name": "Central High", "district": "Pune" }`. Roles: `ADMIN`, `GOVERNMENT`. Response: created school row with `id`, timestamps, and `isActive` flag.
-
-### GET `/api/core/schools`
-Roles: `ADMIN`, `GOVERNMENT`, `TEACHER`, `PRINCIPAL`. School-scoped roles (teachers/principals) automatically receive only their campus.
-
-### POST `/api/core/grades`
-Body `{ "schoolId": "1", "name": "Grade 8", "level": 8 }`. Roles: `ADMIN`, `GOVERNMENT`.
-
-### GET `/api/core/grades`
-Roles: `ADMIN`, `GOVERNMENT`, `TEACHER`, `PRINCIPAL`. Optional `schoolId` query (teachers/principals are forced to their school). Response includes sections for each grade.
-
-### POST `/api/core/sections`
-Body `{ "gradeId": "10", "label": "A" }`. Roles: `ADMIN`, `GOVERNMENT`.
-
-### GET `/api/core/sections`
-Roles: `ADMIN`, `GOVERNMENT`, `TEACHER`, `PRINCIPAL`. Optional `gradeId` query. School-scoped roles are implicitly filtered through the grade relation.
-
-### POST `/api/core/classrooms`
-Body `{ "schoolId": "1", "gradeId": "10", "sectionId": "4", "academicYear": "2025-2026" }`. Roles: `ADMIN`, `GOVERNMENT`.
-
-### GET `/api/core/classrooms`
-Roles: `ADMIN`, `GOVERNMENT`, `TEACHER`, `PRINCIPAL`. Optional `schoolId` query. Response includes grade and section objects for context; teachers/principals are scoped to their school automatically.
-
-### POST `/api/core/teachers`
-Body `{ "schoolId": "1", "firstName": "Tina", "lastName": "Teacher", "email": "teacher@school.test" }`.
-
-### GET `/api/core/teachers`
-Roles: `ADMIN`, `GOVERNMENT`, `TEACHER`, `PRINCIPAL`. Optional `schoolId`. School-scoped roles only see their own campus.
-
-### POST `/api/core/subjects`
-Body `{ "schoolId": "1", "code": "MATH8", "name": "Mathematics" }`.
-
-### GET `/api/core/subjects`
-Roles: `ADMIN`, `GOVERNMENT`, `TEACHER`, `PRINCIPAL`. Optional `schoolId` filter; school-scoped roles are limited to their campus.
-
-### POST `/api/core/students`
-Roles: `ADMIN`, `GOVERNMENT`.
+- **Response 200**
 ```json
 {
-  "schoolId": "1",
-  "classroomId": "25",
-  "classTeacherId": "7",
-  "code": "STU-0001",
-  "phoneNumber": "+15550001001",
-  "firstName": "Sanjay",
-  "lastName": "Student",
-  "gradeLevel": 8,
-  "sectionLabel": "A",
-  "enrolledAt": "2025-06-03"
+	"id": "12",
+	"status": "blocked",
+	"updatedAt": "2025-11-17T03:15:00.000Z"
 }
 ```
 
+## Core Entities (`/api/core`)
+
+All routes require authorization. Teachers automatically scope to their `schoolId` and may only read individual students when they are the assigned homeroom (`classTeacherId`).
+
+### POST `/api/core/schools`
+- **Roles**: `ADMIN`, `GOVERNMENT`
+- **Description**: Register a school campus.
+- **Request**
+```json
+{ "name": "Central High", "district": "Pune" }
+```
+- **Response 201**
+```json
+{ "id": "1", "name": "Central High", "district": "Pune", "isActive": true, "createdAt": "2025-05-01T09:00:00.000Z" }
+```
+
+### GET `/api/core/schools`
+- **Roles**: `ADMIN`, `GOVERNMENT`, `TEACHER`, `PRINCIPAL`
+- **Description**: List schools. Teacher/principal callers automatically receive only their campus.
+- **Response 200**
+```json
+[
+	{ "id": "1", "name": "Central High", "district": "Pune", "isActive": true }
+]
+```
+
+### POST `/api/core/grades`
+- **Roles**: `ADMIN`, `GOVERNMENT`
+- **Description**: Create an academic grade level for a school.
+- **Request**
+```json
+{ "schoolId": "1", "name": "Grade 8", "level": 8 }
+```
+- **Response 201**
+```json
+{ "id": "10", "schoolId": "1", "name": "Grade 8", "level": 8, "isActive": true }
+```
+
+### GET `/api/core/grades`
+- **Roles**: `ADMIN`, `GOVERNMENT`, `TEACHER`, `PRINCIPAL`
+- **Description**: List grades. Optional `schoolId` query (auto-set for school-scoped users).
+- **Response 200**
+```json
+[
+	{ "id": "10", "schoolId": "1", "name": "Grade 8", "level": 8 }
+]
+```
+
+### POST `/api/core/sections`
+- **Roles**: `ADMIN`, `GOVERNMENT`
+- **Description**: Create a section (division) within a grade.
+- **Request**
+```json
+{ "gradeId": "10", "label": "A" }
+```
+- **Response 201**
+```json
+{ "id": "4", "gradeId": "10", "label": "A" }
+```
+
+### GET `/api/core/sections`
+- **Roles**: `ADMIN`, `GOVERNMENT`, `TEACHER`, `PRINCIPAL`
+- **Description**: List sections, optionally filtered by `gradeId`.
+- **Response 200**
+```json
+[
+	{ "id": "4", "gradeId": "10", "label": "A" }
+]
+```
+
+### POST `/api/core/classrooms`
+- **Roles**: `ADMIN`, `GOVERNMENT`
+- **Description**: Create a classroom record linking school, grade, and section.
+- **Request**
+```json
+{ "schoolId": "1", "gradeId": "10", "sectionId": "4", "academicYear": "2025-2026" }
+```
+- **Response 201**
+```json
+{ "id": "25", "schoolId": "1", "gradeId": "10", "sectionId": "4", "academicYear": "2025-2026" }
+```
+
+### GET `/api/core/classrooms`
+- **Roles**: `ADMIN`, `GOVERNMENT`, `TEACHER`, `PRINCIPAL`
+- **Description**: List classrooms. Optional `schoolId` query. Responses embed grade/section to aid UI rendering.
+- **Response 200**
+```json
+[
+	{
+		"id": "25",
+		"schoolId": "1",
+		"grade": { "id": "10", "name": "Grade 8" },
+		"section": { "id": "4", "label": "A" },
+		"academicYear": "2025-2026"
+	}
+]
+```
+
+### POST `/api/core/teachers`
+- **Roles**: `ADMIN`, `GOVERNMENT`
+- **Description**: Create a teacher profile.
+- **Request**
+```json
+{ "schoolId": "1", "firstName": "Tina", "lastName": "Teacher", "email": "teacher@school.test" }
+```
+- **Response 201**
+```json
+{ "id": "7", "schoolId": "1", "firstName": "Tina", "lastName": "Teacher", "email": "teacher@school.test" }
+```
+
+### GET `/api/core/teachers`
+- **Roles**: `ADMIN`, `GOVERNMENT`, `TEACHER`, `PRINCIPAL`
+- **Description**: List teachers. Optional `schoolId`. School-scoped roles only see their campus.
+- **Response 200**
+```json
+[
+	{ "id": "7", "schoolId": "1", "firstName": "Tina", "lastName": "Teacher" }
+]
+```
+
+### POST `/api/core/subjects`
+- **Roles**: `ADMIN`, `GOVERNMENT`
+- **Description**: Create a subject catalog entry.
+- **Request**
+```json
+{ "schoolId": "1", "code": "MATH8", "name": "Mathematics" }
+```
+- **Response 201**
+```json
+{ "id": "3", "schoolId": "1", "code": "MATH8", "name": "Mathematics" }
+```
+
+### GET `/api/core/subjects`
+- **Roles**: `ADMIN`, `GOVERNMENT`, `TEACHER`, `PRINCIPAL`
+- **Description**: List subjects, optionally filtered by `schoolId`.
+- **Response 200**
+```json
+[
+	{ "id": "3", "code": "MATH8", "name": "Mathematics", "schoolId": "1" }
+]
+```
+
+### POST `/api/core/students`
+- **Roles**: `ADMIN`, `GOVERNMENT`
+- **Description**: Create a student profile and tie it to a classroom.
+- **Request**
+```json
+{
+	"schoolId": "1",
+	"classroomId": "25",
+	"classTeacherId": "7",
+	"code": "STU-0001",
+	"phoneNumber": "+15550001001",
+	"firstName": "Sanjay",
+	"lastName": "Student",
+	"gradeLevel": 8,
+	"sectionLabel": "A",
+	"enrolledAt": "2025-06-03"
+}
+```
+- **Response 201**
+```json
+{ "id": "45", "schoolId": "1", "classroomId": "25", "code": "STU-0001", "firstName": "Sanjay", "lastName": "Student" }
+```
+
 ### GET `/api/core/students`
-Roles: `ADMIN`, `GOVERNMENT`, `TEACHER`, `PRINCIPAL`. Optional `classroomId` query. Teachers only see students where `classTeacherId` equals their `teacherId`; principals may view all students in their assigned school.
+- **Roles**: `ADMIN`, `GOVERNMENT`, `TEACHER`, `PRINCIPAL`
+- **Description**: List students. Optional `classroomId` query. Teachers must be the class teacher; principals see the entire school.
+- **Response 200**
+```json
+[
+	{ "id": "45", "classroomId": "25", "firstName": "Sanjay", "lastName": "Student" }
+]
+```
 
 ### GET `/api/core/students/:id`
-Roles: `ADMIN`, `GOVERNMENT`, `TEACHER`, `PRINCIPAL`, `STUDENT`. Returns the student plus `subjects` and `attendances`. Teachers must be the student's homeroom teacher; principals can view students within their school; students may only view themselves.
+- **Roles**: `ADMIN`, `GOVERNMENT`, `TEACHER`, `PRINCIPAL`, `STUDENT`
+- **Description**: Fetch a student with related subjects and attendance summaries.
+- **Response 200**
+```json
+{
+	"id": "45",
+	"firstName": "Sanjay",
+	"lastName": "Student",
+	"classroom": { "id": "25", "grade": { "name": "Grade 8" }, "section": { "label": "A" } },
+	"subjects": [ { "id": "3", "code": "MATH8", "name": "Mathematics" } ],
+	"attendances": [ { "sessionDate": "2025-06-10", "status": "present" } ]
+}
+```
+- **Notes**: Teachers must be the student's homeroom teacher; students may only fetch their own record.
 
 ## Enrollment (`/api/enrollment`)
 
 ### POST `/api/enrollment/teacher-subjects`
 - **Roles**: `ADMIN`, `GOVERNMENT`, `TEACHER`, `PRINCIPAL`
-- **Body**
+- **Description**: Assign a teacher to a subject-classroom pairing.
+- **Request**
 ```json
 {
 	"teacherId": "7",
@@ -164,25 +319,58 @@ Roles: `ADMIN`, `GOVERNMENT`, `TEACHER`, `PRINCIPAL`, `STUDENT`. Returns the stu
 	"endDate": null
 }
 ```
-- Teachers can only manage their own assignments. Principals must belong to the same school as the teacher/classroom they are updating.
+- **Response 201**
+```json
+{ "id": "12", "teacherId": "7", "subjectId": "3", "classroomId": "25", "startDate": "2025-06-01", "endDate": null }
+```
+- **Notes**: Teachers can only manage their own assignments; principals must belong to the same school.
 
 ### POST `/api/enrollment/student-subjects`
 - **Roles**: `ADMIN`, `GOVERNMENT`, `TEACHER`, `PRINCIPAL`
-- **Body** `{ "studentId": "45", "teacherSubjectId": "12", "enrolledOn": "2025-06-05", "status": "active" }`
-- Teachers are limited to `teacherSubject` rows they own; principals must operate within their assigned school.
+- **Description**: Link a student to a teacher-subject record.
+- **Request**
+```json
+{ "studentId": "45", "teacherSubjectId": "12", "enrolledOn": "2025-06-05", "status": "active" }
+```
+- **Response 201**
+```json
+{ "id": "33", "studentId": "45", "teacherSubjectId": "12", "status": "active" }
+```
 
 ### POST `/api/enrollment/student-groups`
 - **Roles**: `ADMIN`, `GOVERNMENT`, `TEACHER`, `PRINCIPAL`
-- **Body** `{ "schoolId": "1", "name": "Remediation Batch", "description": "Math help", "visibility": "manual" }`
-- Teachers and principals must belong to the same school they are mutating.
+- **Description**: Create a reusable student cohort (manual or dynamic visibility).
+- **Request**
+```json
+{ "schoolId": "1", "name": "Remediation Batch", "description": "Math help", "visibility": "manual" }
+```
+- **Response 201**
+```json
+{ "id": "3", "schoolId": "1", "name": "Remediation Batch", "visibility": "manual" }
+```
 
 ### POST `/api/enrollment/student-groups/:groupId/members`
 - **Roles**: `ADMIN`, `GOVERNMENT`, `TEACHER`, `PRINCIPAL`
-- **Body** `{ "studentIds": ["45", "46"], "addedBy": "7" }`
-- Members are upserted—re-adding a student updates nothing but succeeds idempotently. School-scoped roles must belong to the group's school.
+- **Description**: Add or re-add members to a group. Operation is idempotent.
+- **Request**
+```json
+{ "studentIds": ["45", "46"], "addedBy": "7" }
+```
+- **Response 200**
+```json
+{ "groupId": "3", "totalMembers": 2 }
+```
 
 ### GET `/api/enrollment/student-groups`
-Roles: `ADMIN`, `GOVERNMENT`, `TEACHER`, `PRINCIPAL`. Optional `schoolId`. Response includes each group with `members` array; teachers/principals are auto-scoped to their school.
+- **Roles**: `ADMIN`, `GOVERNMENT`, `TEACHER`, `PRINCIPAL`
+- **Description**: List student groups (auto-scoped to caller's school unless admin/government).
+- **Query**: optional `schoolId`
+- **Response 200**
+```json
+[
+	{ "id": "3", "schoolId": "1", "name": "Remediation Batch", "members": [ { "studentId": "45" } ] }
+]
+```
 
 ## Attendance (`/api/attendance`)
 
@@ -190,7 +378,8 @@ Homeroom teachers (matching `classTeacherId`) or devices with `x-device-key` can
 
 ### POST `/api/attendance/sessions`
 - **Headers**: `Authorization: Bearer <token>` (homeroom teacher) *or* `x-device-key`
-- **Body**
+- **Description**: Start a new attendance session for a classroom/date pair.
+- **Request**
 ```json
 {
 	"schoolId": "1",
@@ -200,30 +389,53 @@ Homeroom teachers (matching `classTeacherId`) or devices with `x-device-key` can
 	"endsAt": "2025-06-10T10:00:00.000Z"
 }
 ```
-- **Response 201**: Created session.
+- **Response 201**
+```json
+{ "id": "90", "classroomId": "25", "sessionDate": "2025-06-10", "startsAt": "2025-06-10T09:00:00.000Z" }
+```
 - **Errors**: `409` if a session already exists for `[classroomId, sessionDate]`.
 
 ### POST `/api/attendance/sessions/:sessionId/records`
-- **Body**
+- **Roles**: Homeroom teachers, principals, admins, government, or device with `x-device-key`
+- **Description**: Bulk upsert attendance entries for a session.
+- **Request**
 ```json
 {
-  "entries": [
-    { "studentId": "45", "status": "present" },
-    { "studentId": "46", "status": "absent" }
-  ]
+	"entries": [
+		{ "studentId": "45", "status": "present" },
+		{ "studentId": "46", "status": "absent" }
+	]
 }
 ```
-- **Response 200**: `{ "message": "Attendance synced" }`.
+- **Response 200**
+```json
+{ "message": "Attendance synced", "updated": 2 }
+```
 
 ### GET `/api/attendance/students/:studentId`
 - **Roles**: `ADMIN`, `GOVERNMENT`, `TEACHER`, `PRINCIPAL`, `STUDENT`
+- **Description**: Raw attendance records for a student within an optional date range.
 - **Query**: optional `from`, `to` ISO dates.
-- **Response**: Array of attendance records, each with nested `attendanceSession` including `sessionDate`, `startsAt`, `endsAt`.
+- **Response 200**
+```json
+[
+	{
+		"sessionId": "90",
+		"status": "present",
+		"attendanceSession": {
+			"sessionDate": "2025-06-10",
+			"startsAt": "2025-06-10T09:00:00.000Z",
+			"endsAt": "2025-06-10T10:00:00.000Z"
+		}
+	}
+]
+```
 
 ### GET `/api/attendance/students/summary`
 - **Roles**: `ADMIN`, `GOVERNMENT`, `TEACHER`, `PRINCIPAL`, `STUDENT`
-- **Query**: either `studentId=<id>` or `phone=<E.164>`.
-- **Response**
+- **Description**: Aggregate attendance stats for a student looked up by ID or phone.
+- **Query**: `studentId=<id>` or `phone=<E.164>`
+- **Response 200**
 ```json
 {
 	"studentId": "45",
@@ -235,8 +447,9 @@ Homeroom teachers (matching `classTeacherId`) or devices with `x-device-key` can
 
 ### GET `/api/attendance/classrooms/:classroomId/summary`
 - **Roles**: `ADMIN`, `GOVERNMENT`, `TEACHER`, `PRINCIPAL`
+- **Description**: Daily classroom roll-up plus per-student statuses.
 - **Query**: optional `date=YYYY-MM-DD` (normalized to midnight).
-- **Response**
+- **Response 200**
 ```json
 {
 	"sessions": [
@@ -244,7 +457,11 @@ Homeroom teachers (matching `classTeacherId`) or devices with `x-device-key` can
 			"id": "90",
 			"sessionDate": "2025-06-10",
 			"studentAttendance": [
-				{ "studentId": "45", "status": "present", "student": { "id": "45", "firstName": "Sanjay", "lastName": "Student", "code": "STU-0001" } }
+				{
+					"studentId": "45",
+					"status": "present",
+					"student": { "id": "45", "firstName": "Sanjay", "lastName": "Student", "code": "STU-0001" }
+				}
 			]
 		}
 	],
@@ -255,7 +472,9 @@ Homeroom teachers (matching `classTeacherId`) or devices with `x-device-key` can
 ## Assessments (`/api/assessments`)
 
 ### POST `/api/assessments/exams`
-Body
+- **Roles**: `ADMIN`, `GOVERNMENT`, `TEACHER`, `PRINCIPAL`
+- **Description**: Create an assessment definition tied to a classroom and teacher.
+- **Request**
 ```json
 {
 	"subjectId": "3",
@@ -266,10 +485,16 @@ Body
 	"examDate": "2025-07-01"
 }
 ```
-Teachers must match `teacherId`.
+- **Response 201**
+```json
+{ "id": "15", "subjectId": "3", "teacherId": "7", "classroomId": "25", "examDate": "2025-07-01" }
+```
+- **Notes**: Teachers must match `teacherId`; principals must share the school.
 
 ### POST `/api/assessments/exam-results`
-Body
+- **Roles**: `ADMIN`, `GOVERNMENT`, `TEACHER`, `PRINCIPAL`
+- **Description**: Bulk upsert scores for an exam.
+- **Request**
 ```json
 {
 	"examId": "15",
@@ -279,17 +504,32 @@ Body
 	]
 }
 ```
-Response `{ "message": "Exam results synced" }`.
+- **Response 200**
+```json
+{ "message": "Exam results synced", "updated": 2 }
+```
 
 ### GET `/api/assessments/students/:studentId/latest`
 - **Roles**: `ADMIN`, `GOVERNMENT`, `TEACHER`, `PRINCIPAL`, `STUDENT`
-- **Response**: Returns up to 10 most recent `studentExamResult` rows with embedded `exam` info. Students can only view themselves; teachers/principals must share the student's school.
+- **Description**: Fetch the 10 most recent exam results for a student with embedded exam metadata.
+- **Response 200**
+```json
+[
+	{
+		"exam": { "id": "15", "name": "Midterm", "totalMarks": 100, "examDate": "2025-07-01" },
+		"score": 88,
+		"grade": "B+"
+	}
+]
+```
+- **Notes**: Students may only fetch themselves; teachers/principals/government must share the school.
 
 ## Notifications (`/api/communications`)
 
 ### POST `/api/communications/notifications`
 - **Roles**: `ADMIN`, `GOVERNMENT`, `TEACHER`, `PRINCIPAL`
-- **Body**
+- **Description**: Create a notification broadcast with explicit targets.
+- **Request**
 ```json
 {
 	"schoolId": "1",
@@ -308,16 +548,46 @@ Response `{ "message": "Exam results synced" }`.
 	}
 }
 ```
-At least one target bucket must contain IDs. Teachers/principals must belong to the same school. Response `{ "notification": {...}, "targets": 3 }` where `targets` equals the total number of rows inserted into `notification_targets`.
+- **Response 201**
+```json
+{
+	"notification": {
+		"id": "20",
+		"schoolId": "1",
+		"title": "PTA Meeting",
+		"priority": 3,
+		"activeFrom": "2025-06-12T04:00:00.000Z",
+		"activeTill": "2025-06-15T23:59:59.000Z"
+	},
+	"targets": 3
+}
+```
+- **Notes**: At least one target bucket must contain IDs. Teachers/principals must belong to the same school they target.
 
 ### GET `/api/communications/notifications/active`
-Available to any authenticated role. Returns notifications whose `activeFrom <= now <= activeTill`, ordered by `activeTill`, each with a `targets` array.
+- **Roles**: Any authenticated role
+- **Description**: List notifications where `activeFrom <= now <= activeTill`.
+- **Response 200**
+```json
+[
+	{
+		"id": "20",
+		"title": "PTA Meeting",
+		"body": "Parents meet on Friday",
+		"category": "general",
+		"priority": 3,
+		"activeTill": "2025-06-15T23:59:59.000Z",
+		"targets": [ { "type": "student", "studentId": "45" } ]
+	}
+]
+```
 
 ## Timetables (`/api/timetables`)
 
 ### PUT `/api/timetables/classrooms/:classroomId`
 - **Roles**: `ADMIN`, `PRINCIPAL`
-- **Body**
+- **Description**: Replace the entire weekly timetable for a classroom. Duplicate `(weekDay, period)` pairs are rejected.
+- **Request**
 ```json
 {
 	"entries": [
@@ -340,11 +610,15 @@ Available to any authenticated role. Returns notifications whose `activeFrom <= 
 	]
 }
 ```
-- Replaces the entire weekly timetable for the classroom. `weekDay` is 1-7, `period` is the slot number, and optional times use `HH:MM` 24h format. Duplicate `(weekDay, period)` pairs are rejected.
+- **Response 200**
+```json
+{ "classroomId": "25", "totalEntries": 2 }
+```
 
 ### GET `/api/timetables/classrooms/:classroomId`
 - **Roles**: `ADMIN`, `GOVERNMENT`, `PRINCIPAL`, `TEACHER`, `STUDENT`
-- **Response**
+- **Description**: Fetch the timetable for a classroom with teacher/subject enrichments when linked via `teacherSubjectId`.
+- **Response 200**
 ```json
 {
 	"classroomId": "25",
@@ -364,11 +638,31 @@ Available to any authenticated role. Returns notifications whose `activeFrom <= 
 	]
 }
 ```
-- School-scoped roles can only read timetables for their own campus; students can only view their assigned classroom.
+- **Notes**: Teachers must be the homeroom (`classTeacherId`); principals can view any classroom; students can view only their assigned classroom.
 
 ### GET `/api/timetables/students/:studentId`
 - **Roles**: `ADMIN`, `GOVERNMENT`, `PRINCIPAL`, `TEACHER`, `STUDENT`
-- **Description**: Convenience endpoint that resolves the student's classroom and returns the same payload as the classroom view. Students may only fetch their own timetable; teachers/principals are limited to their school.
+- **Description**: Convenience endpoint that resolves the student's classroom and returns the same payload as the classroom view.
+- **Response 200**
+```json
+{
+	"studentId": "45",
+	"classroomId": "25",
+	"entries": [
+		{
+			"id": "10",
+			"weekDay": 1,
+			"period": 1,
+			"label": "Mathematics",
+			"startTime": "09:00",
+			"endTime": "09:45",
+			"teacher": { "id": "7", "firstName": "Tina", "lastName": "Teacher" },
+			"subject": { "id": "3", "code": "MATH8", "name": "Mathematics" }
+		}
+	]
+}
+```
+- **Notes**: Students may only fetch their own timetable; teachers must be the student's homeroom teacher; principals can access any student.
 
 ## Error Reference
 

@@ -24,16 +24,26 @@ const ensureCanViewClassroom = async (req: Request, res: Response, classroomId: 
     return null;
   }
 
-  if (req.user?.role === "PRINCIPAL") {
-    if (!req.user.schoolId || req.user.schoolId !== classroom.schoolId) {
-      res.status(403).json({ message: "Principals can only view their school" });
-      return null;
-    }
-  }
-
   if (req.user?.role === "TEACHER" && req.user.teacher) {
     if (req.user.teacher.schoolId !== classroom.schoolId) {
       res.status(403).json({ message: "Forbidden" });
+      return null;
+    }
+    if (!req.user.teacherId) {
+      res.status(403).json({ message: "Forbidden" });
+      return null;
+    }
+    const ownsClassroom = await prisma.student.findFirst({
+      where: {
+        classroomId,
+        classTeacherId: req.user.teacherId
+      },
+      select: { id: true }
+    });
+    if (!ownsClassroom) {
+      res
+        .status(403)
+        .json({ message: "Teachers can only view timetables for classrooms they homeroom" });
       return null;
     }
   }
@@ -126,7 +136,7 @@ timetableRouter.get(
     const studentId = BigInt(req.params.studentId);
     const student = await prisma.student.findUnique({
       where: { id: studentId },
-      select: { classroomId: true, schoolId: true }
+      select: { classroomId: true, schoolId: true, classTeacherId: true }
     });
     if (!student) {
       return res.status(404).json({ message: "Student not found" });
@@ -136,12 +146,13 @@ timetableRouter.get(
       return res.status(403).json({ message: "Forbidden" });
     }
 
-    if (req.user?.role === "TEACHER" && req.user.teacher && req.user.teacher.schoolId !== student.schoolId) {
-      return res.status(403).json({ message: "Forbidden" });
-    }
-
-    if (req.user?.role === "PRINCIPAL" && (!req.user.schoolId || req.user.schoolId !== student.schoolId)) {
-      return res.status(403).json({ message: "Forbidden" });
+    if (req.user?.role === "TEACHER") {
+      if (!req.user.teacher || req.user.teacher.schoolId !== student.schoolId) {
+        return res.status(403).json({ message: "Forbidden" });
+      }
+      if (!req.user.teacherId || req.user.teacherId !== student.classTeacherId) {
+        return res.status(403).json({ message: "Teachers can only view their homeroom students" });
+      }
     }
 
     const entries = await fetchTimetable(student.classroomId);
