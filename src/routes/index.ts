@@ -1,0 +1,16 @@
+import { Router } from "express";
+import { healthRouter } from "./health.route";
+import { coreRouter } from "../modules/core/core.router";
+import { enrollmentRouter } from "../modules/enrollment/enrollment.router";
+import { attendanceRouter } from "../modules/attendance/attendance.router";
+import { assessmentRouter } from "../modules/assessments/assessment.router";
+import { notificationRouter } from "../modules/notifications/notification.router";
+
+export const apiRouter = Router();
+
+apiRouter.use(healthRouter);
+apiRouter.use("/core", coreRouter);
+apiRouter.use("/enrollment", enrollmentRouter);
+apiRouter.use("/attendance", attendanceRouter);
+apiRouter.use("/assessments", assessmentRouter);
+apiRouter.use("/communications", notificationRouter);

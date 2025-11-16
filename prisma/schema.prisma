@@ -1,0 +1,304 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mysql"
+  url      = env("DATABASE_URL")
+}
+
+enum StudentSubjectStatus {
+  active
+  dropped
+  completed
+}
+
+enum AttendanceStatus {
+  present
+  absent
+  late
+  excused
+}
+
+enum NotificationCategory {
+  general
+  exam
+  attendance
+  emergency
+}
+
+enum NotificationTargetType {
+  student
+  student_group
+  teacher
+  classroom
+}
+
+enum NotificationUserType {
+  student
+  teacher
+}
+
+enum GroupVisibility {
+  manual
+  rule_based
+}
+
+model School {
+  id        BigInt   @id @default(autoincrement())
+  name      String   @db.VarChar(120)
+  district  String?  @db.VarChar(120)
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  grades    Grade[]
+  classrooms Classroom[]
+  students  Student[]
+  teachers  Teacher[]
+  subjects  Subject[]
+  notifications Notification[]
+  attendanceSessions AttendanceSession[]
+  studentGroups StudentGroup[]
+}
+
+model Grade {
+  id        BigInt  @id @default(autoincrement())
+  schoolId  BigInt
+  name      String  @db.VarChar(30)
+  level     Int
+  isActive  Boolean @default(true)
+  school    School  @relation(fields: [schoolId], references: [id])
+  sections  Section[]
+  classrooms Classroom[]
+
+  @@index([schoolId])
+}
+
+model Section {
+  id      BigInt @id @default(autoincrement())
+  gradeId BigInt
+  label   String @db.VarChar(10)
+  grade   Grade  @relation(fields: [gradeId], references: [id])
+  classrooms Classroom[]
+
+  @@index([gradeId])
+}
+
+model Classroom {
+  id            BigInt @id @default(autoincrement())
+  schoolId      BigInt
+  gradeId       BigInt
+  sectionId     BigInt
+  academicYear  String @db.Char(9)
+  school        School @relation(fields: [schoolId], references: [id])
+  grade         Grade  @relation(fields: [gradeId], references: [id])
+  section       Section @relation(fields: [sectionId], references: [id])
+  students      Student[]
+  teacherSubjects TeacherSubject[]
+  exams         Exam[]
+  attendanceSessions AttendanceSession[]
+
+  @@unique([gradeId, sectionId, academicYear])
+  @@index([schoolId])
+}
+
+model Student {
+  id            BigInt @id @default(autoincrement())
+  schoolId      BigInt
+  classroomId   BigInt
+  code          String @db.VarChar(30)
+  firstName     String @db.VarChar(60)
+  lastName      String @db.VarChar(60)
+  gradeLevel    Int
+  sectionLabel  String @db.VarChar(10)
+  enrolledAt    DateTime @db.Date
+  active        Boolean @default(true)
+  school        School @relation(fields: [schoolId], references: [id])
+  classroom     Classroom @relation(fields: [classroomId], references: [id])
+  subjects      StudentSubject[]
+  attendances   StudentAttendance[]
+  examResults   StudentExamResult[]
+  groupMemberships StudentGroupMember[]
+
+  @@unique([schoolId, code])
+  @@index([schoolId, classroomId])
+}
+
+model Teacher {
+  id        BigInt @id @default(autoincrement())
+  schoolId  BigInt
+  firstName String @db.VarChar(60)
+  lastName  String @db.VarChar(60)
+  email     String @unique @db.VarChar(120)
+  active    Boolean @default(true)
+  school    School  @relation(fields: [schoolId], references: [id])
+  teacherSubjects TeacherSubject[]
+  exams     Exam[]
+  notifications Notification[] @relation("TeacherNotifications")
+
+  @@index([schoolId])
+}
+
+model Subject {
+  id        BigInt @id @default(autoincrement())
+  schoolId  BigInt
+  code      String @db.VarChar(20)
+  name      String @db.VarChar(80)
+  school    School @relation(fields: [schoolId], references: [id])
+  teacherSubjects TeacherSubject[]
+  exams     Exam[]
+  attendanceSessions AttendanceSession[]
+
+  @@unique([schoolId, code])
+}
+
+model TeacherSubject {
+  id          BigInt @id @default(autoincrement())
+  teacherId   BigInt
+  subjectId   BigInt
+  classroomId BigInt?
+  startDate   DateTime @db.Date
+  endDate     DateTime? @db.Date
+  teacher     Teacher @relation(fields: [teacherId], references: [id])
+  subject     Subject @relation(fields: [subjectId], references: [id])
+  classroom   Classroom? @relation(fields: [classroomId], references: [id])
+  studentSubjects StudentSubject[]
+
+  @@unique([teacherId, subjectId, classroomId, startDate])
+}
+
+model StudentSubject {
+  id                BigInt @id @default(autoincrement())
+  studentId         BigInt
+  teacherSubjectId  BigInt
+  enrolledOn        DateTime @db.Date
+  status            StudentSubjectStatus @default(active)
+  student           Student @relation(fields: [studentId], references: [id])
+  teacherSubject    TeacherSubject @relation(fields: [teacherSubjectId], references: [id])
+
+  @@unique([studentId, teacherSubjectId])
+}
+
+model Exam {
+  id           BigInt @id @default(autoincrement())
+  subjectId    BigInt
+  teacherId    BigInt
+  classroomId  BigInt?
+  name         String @db.VarChar(80)
+  totalMarks   Decimal @db.Decimal(5, 2)
+  examDate     DateTime @db.Date
+  subject      Subject @relation(fields: [subjectId], references: [id])
+  teacher      Teacher @relation(fields: [teacherId], references: [id])
+  classroom    Classroom? @relation(fields: [classroomId], references: [id])
+  results      StudentExamResult[]
+
+  @@index([subjectId, examDate])
+  @@index([classroomId, examDate])
+}
+
+model StudentExamResult {
+  id         BigInt @id @default(autoincrement())
+  examId     BigInt
+  studentId  BigInt
+  score      Decimal @db.Decimal(5, 2)
+  grade      String  @db.VarChar(5)
+  gradedAt   DateTime @default(now())
+  exam       Exam    @relation(fields: [examId], references: [id])
+  student    Student @relation(fields: [studentId], references: [id])
+
+  @@unique([examId, studentId])
+}
+
+model AttendanceSession {
+  id           BigInt @id @default(autoincrement())
+  schoolId     BigInt
+  classroomId  BigInt
+  subjectId    BigInt?
+  sessionDate  DateTime @db.Date
+  startsAt     DateTime? @db.Time(0)
+  endsAt       DateTime? @db.Time(0)
+  school       School @relation(fields: [schoolId], references: [id])
+  classroom    Classroom @relation(fields: [classroomId], references: [id])
+  subject      Subject? @relation(fields: [subjectId], references: [id])
+  studentAttendance StudentAttendance[]
+
+  @@unique([classroomId, subjectId, sessionDate, startsAt])
+  @@index([schoolId])
+}
+
+model StudentAttendance {
+  id                   BigInt @id @default(autoincrement())
+  attendanceSessionId  BigInt
+  studentId            BigInt
+  status               AttendanceStatus @default(present)
+  recordedAt           DateTime @default(now())
+  attendanceSession    AttendanceSession @relation(fields: [attendanceSessionId], references: [id])
+  student              Student @relation(fields: [studentId], references: [id])
+
+  @@unique([attendanceSessionId, studentId])
+}
+
+model StudentGroup {
+  id          BigInt @id @default(autoincrement())
+  schoolId    BigInt
+  name        String @db.VarChar(80)
+  description String?
+  visibility  GroupVisibility @default(manual)
+  active      Boolean @default(true)
+  school      School @relation(fields: [schoolId], references: [id])
+  members     StudentGroupMember[]
+
+  @@unique([schoolId, name])
+}
+
+model StudentGroupMember {
+  id         BigInt @id @default(autoincrement())
+  groupId    BigInt
+  studentId  BigInt
+  addedAt    DateTime @default(now())
+  addedBy    BigInt?
+  group      StudentGroup @relation(fields: [groupId], references: [id])
+  student    Student @relation(fields: [studentId], references: [id])
+
+  @@unique([groupId, studentId])
+}
+
+model Notification {
+  id          BigInt @id @default(autoincrement())
+  schoolId    BigInt
+  title       String @db.VarChar(120)
+  body        String @db.Text
+  category    NotificationCategory @default(general)
+  activeFrom  DateTime @default(now())
+  activeTill  DateTime
+  priority    Int     @default(3)
+  createdBy   BigInt
+  school      School  @relation(fields: [schoolId], references: [id])
+  creator     Teacher? @relation("TeacherNotifications", fields: [createdBy], references: [id])
+  targets     NotificationTarget[]
+  reads       NotificationRead[]
+
+  @@index([schoolId, activeFrom, activeTill])
+  @@index([activeTill])
+}
+
+model NotificationTarget {
+  id             BigInt @id @default(autoincrement())
+  notificationId BigInt
+  targetType     NotificationTargetType
+  targetId       BigInt
+  notification   Notification @relation(fields: [notificationId], references: [id])
+
+  @@unique([notificationId, targetType, targetId])
+  @@index([targetId])
+}
+
+model NotificationRead {
+  id              BigInt @id @default(autoincrement())
+  notificationId  BigInt
+  userType        NotificationUserType
+  userId          BigInt
+  readAt          DateTime @default(now())
+  notification    Notification @relation(fields: [notificationId], references: [id])
+
+  @@index([notificationId])
+}
