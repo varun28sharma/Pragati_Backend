@@ -57,6 +57,22 @@ enum UserStatus {
   blocked
 }
 
+enum ComplaintCategory {
+  lack_of_proper_drinking_water
+  toilets
+  girls_toilets
+  liberty
+  proper_electricity
+  computers
+}
+
+enum ComplaintStatus {
+  open
+  in_progress
+  resolved
+  dismissed
+}
+
 model School {
   id        BigInt   @id @default(autoincrement())
   name      String   @db.VarChar(120)
@@ -73,6 +89,7 @@ model School {
   studentGroups StudentGroup[]
   users     User[]
   classroomTimetables ClassroomTimetable[]
+  complaints Complaint[]
 }
 
 model Grade {
@@ -112,6 +129,7 @@ model Classroom {
   exams         Exam[]
   attendanceSessions AttendanceSession[]
   timetables    ClassroomTimetable[]
+  complaints    Complaint[]
 
   @@unique([gradeId, sectionId, academicYear])
   @@index([schoolId])
@@ -138,6 +156,7 @@ model Student {
   groupMemberships StudentGroupMember[]
   user          User? @relation("StudentAccount")
   classTeacher  Teacher? @relation("ClassTeacherStudents", fields: [classTeacherId], references: [id])
+  complaints    Complaint[]
 
   @@unique([schoolId, code])
   @@unique([phoneNumber])
@@ -359,8 +378,36 @@ model User {
   school       School? @relation(fields: [schoolId], references: [id])
   student      Student? @relation("StudentAccount", fields: [studentId], references: [id])
   teacher      Teacher? @relation("TeacherAccounts", fields: [teacherId], references: [id])
+  reportedComplaints Complaint[] @relation("ComplaintReporter")
+  resolvedComplaints Complaint[] @relation("ComplaintResolver")
 
   @@unique([email])
   @@unique([phoneNumber])
   @@index([role])
+}
+
+model Complaint {
+  id            BigInt            @id @default(autoincrement())
+  schoolId      BigInt
+  studentId     BigInt?
+  classroomId   BigInt?
+  reportedById  BigInt
+  category      ComplaintCategory
+  description   String            @db.Text
+  isAnonymous   Boolean           @default(false)
+  status        ComplaintStatus   @default(open)
+  resolutionNote String?          @db.VarChar(500)
+  resolvedById  BigInt?
+  resolvedAt    DateTime?
+  createdAt     DateTime          @default(now())
+  updatedAt     DateTime          @updatedAt
+
+  school        School            @relation(fields: [schoolId], references: [id])
+  student       Student?          @relation(fields: [studentId], references: [id])
+  classroom     Classroom?        @relation(fields: [classroomId], references: [id])
+  reporter      User              @relation("ComplaintReporter", fields: [reportedById], references: [id])
+  resolvedBy    User?             @relation("ComplaintResolver", fields: [resolvedById], references: [id])
+
+  @@index([schoolId, status])
+  @@index([reportedById])
 }

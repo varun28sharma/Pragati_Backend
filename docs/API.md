@@ -605,6 +605,110 @@ Homeroom teachers (matching `classTeacherId`) or devices with `x-device-key` can
 - **Roles**: `TEACHER`
 - **Description**: Streams the teacher report as a PDF, mirroring the JSON query parameters and scoping rules. Ideal for downloading/shareable documents that include summary lines for each classroom.
 
+## Complaints (`/api/complaints`)
+
+Supported categories (enum `ComplaintCategory`): `lack_of_proper_drinking_water`, `toilets`, `girls_toilets`, `liberty`, `proper_electricity`, `computers`. Complaint statuses flow through `open → in_progress → resolved|dismissed`.
+
+### POST `/api/complaints`
+- **Roles**: `STUDENT`
+- **Description**: Students submit a complaint. By default their profile (name/classroom) is attached, but sending `isAnonymous=true` hides it from principals.
+- **Body**
+```json
+{
+	"category": "computers",
+	"description": "Only 3 of the lab machines power on. We need working systems before the practical exams.",
+	"isAnonymous": false
+}
+```
+- **Response 201** (student always sees their own details)
+```json
+{
+	"id": "42",
+	"category": "computers",
+	"description": "Only 3 of the lab machines power on...",
+	"status": "open",
+	"isAnonymous": false,
+	"classroomId": "25",
+	"student": { "id": "300", "firstName": "Rekha", "lastName": "Yadav", "code": "STU-300" },
+	"classroom": {
+		"id": "25",
+		"grade": { "id": "10", "name": "Grade 8", "level": 8 },
+		"section": { "id": "4", "label": "A" }
+	},
+	"resolutionNote": null,
+	"resolvedBy": null,
+	"createdAt": "2025-11-16T09:12:00.000Z"
+}
+```
+
+### GET `/api/complaints/mine`
+- **Roles**: `STUDENT`
+- **Description**: Lists the logged-in student's complaints. Optional `status` query narrows results to a single state.
+- **Response 200**
+```json
+{
+	"total": 2,
+	"items": [
+		{
+			"id": "42",
+			"category": "computers",
+			"status": "in_progress",
+			"description": "Only 3 of the lab machines power on...",
+			"student": { "id": "300", "firstName": "Rekha", "lastName": "Yadav", "code": "STU-300" },
+			"classroom": { "id": "25", "grade": { "name": "Grade 8" }, "section": { "label": "A" } },
+			"resolvedBy": { "id": "9", "role": "PRINCIPAL", "email": "principal@school.in" },
+			"resolutionNote": "Vendor visit scheduled",
+			"resolvedAt": "2025-11-19T10:00:00.000Z"
+		}
+	]
+}
+```
+
+### GET `/api/complaints`
+- **Roles**: `PRINCIPAL`, `ADMIN`
+- **Description**: Principals automatically scope to their school. Admins must provide `schoolId`. Filters include `status`, `category`, `anonymous` (`true|false|1|0`), and `studentId`.
+- **Response 200**
+```json
+{
+	"schoolId": "1",
+	"total": 3,
+	"items": [
+		{
+			"id": "42",
+			"category": "computers",
+			"status": "in_progress",
+			"isAnonymous": false,
+			"student": { "id": "300", "firstName": "Rekha", "lastName": "Yadav", "code": "STU-300" },
+			"classroom": { "id": "25", "grade": { "name": "Grade 8" }, "section": { "label": "A" } },
+			"resolutionNote": "Vendor visit scheduled",
+			"resolvedBy": { "id": "9", "role": "PRINCIPAL", "email": "principal@school.in" }
+		},
+		{
+			"id": "45",
+			"category": "girls_toilets",
+			"status": "open",
+			"isAnonymous": true,
+			"student": null,
+			"classroom": { "id": "18", "grade": { "name": "Grade 6" }, "section": { "label": "B" } },
+			"resolutionNote": null,
+			"resolvedBy": null
+		}
+	]
+}
+```
+
+### PATCH `/api/complaints/:complaintId`
+- **Roles**: `PRINCIPAL`, `ADMIN`
+- **Description**: Update the complaint `status` and/or leave a `resolutionNote`. Moving to `resolved` or `dismissed` automatically stamps the acting user and timestamp; moving back to `open/in_progress` clears those fields.
+- **Body**
+```json
+{
+	"status": "resolved",
+	"resolutionNote": "New RO filter installed in Block B"
+}
+```
+- **Response 200**: Returns the updated complaint payload (student info hidden when `isAnonymous=true`).
+
 ## Assessments (`/api/assessments`)
 
 ### POST `/api/assessments/exams`

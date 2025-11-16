@@ -9,6 +9,7 @@ import { authRouter } from "../modules/auth/auth.router";
 import { timetableRouter } from "../modules/timetables/timetable.router";
 import { teacherRouter } from "../modules/teachers/teacher.router";
 import { reportsRouter } from "../modules/reports/reports.router";
+import { complaintsRouter } from "../modules/complaints/complaints.router";
 import { authenticate } from "../middleware/auth";
 
 export const apiRouter = Router();
@@ -24,3 +25,4 @@ apiRouter.use("/communications", notificationRouter);
 apiRouter.use("/timetables", timetableRouter);
 apiRouter.use("/teachers", teacherRouter);
 apiRouter.use("/reports", reportsRouter);
+apiRouter.use("/complaints", complaintsRouter);
