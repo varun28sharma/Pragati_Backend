@@ -515,6 +515,96 @@ Homeroom teachers (matching `classTeacherId`) or devices with `x-device-key` can
 }
 ```
 
+## Reports (`/api/reports`)
+
+### GET `/api/reports/attendance/principal`
+- **Roles**: `PRINCIPAL`, `GOVERNMENT`, `ADMIN`
+- **Description**: Generates an attendance summary for every classroom in the principal’s school between the supplied `start` and `end` dates (ISO strings). Useful for exporting figures to the government portal.
+- **Query**: `start=YYYY-MM-DD`, `end=YYYY-MM-DD`
+- **Response 200**
+```json
+{
+	"schoolId": "1",
+	"range": { "start": "2025-06-01T00:00:00.000Z", "end": "2025-06-30T23:59:59.999Z" },
+	"totals": {
+		"sessions": 45,
+		"totalRecords": 1350,
+		"present": 1230,
+		"absent": 90,
+		"late": 20,
+		"excused": 10,
+		"attendanceRate": 0.91
+	},
+	"classrooms": [
+		{
+			"classroomId": "25",
+			"grade": { "id": "10", "name": "Grade 8", "level": 8 },
+			"section": { "id": "4", "label": "A" },
+			"totalSessions": 15,
+			"totalRecords": 450,
+			"present": 420,
+			"absent": 20,
+			"late": 5,
+			"excused": 5,
+			"attendanceRate": 0.93
+		}
+	],
+	"topClassrooms": [ { "classroomId": "25", "attendanceRate": 0.93, "totalRecords": 450 } ],
+	"bottomClassrooms": [ { "classroomId": "29", "attendanceRate": 0.82, "totalRecords": 420 } ],
+	"generatedAt": "2025-06-30T12:05:00.000Z"
+}
+```
+
+### GET `/api/reports/attendance/principal/pdf`
+- **Roles**: `PRINCIPAL`, `GOVERNMENT`, `ADMIN`
+- **Description**: Same payload as the JSON endpoint but streamed as a PDF (content type `application/pdf`). Frontends should pass the same `start`/`end` query parameters.
+
+### GET `/api/reports/attendance/teacher`
+- **Roles**: `TEACHER`
+- **Description**: Returns rich attendance analytics for the authenticated teacher’s classrooms, including per-classroom roles (homeroom vs subject support) and daily trend points for plotting charts. Optional `classroomId` query restricts output to a single class.
+- **Query**: `start=YYYY-MM-DD`, `end=YYYY-MM-DD`, optional `classroomId=<id>`
+- **Response 200**
+```json
+{
+	"teacherId": "7",
+	"schoolId": "1",
+	"range": { "start": "2025-06-01T00:00:00.000Z", "end": "2025-06-30T23:59:59.999Z" },
+	"classrooms": [
+		{
+			"classroomId": "25",
+			"grade": { "id": "10", "name": "Grade 8", "level": 8 },
+			"section": { "id": "4", "label": "A" },
+			"roles": {
+				"homeroom": true,
+				"subjects": [ { "subjectId": "3", "subjectCode": "MATH8", "subjectName": "Mathematics" } ]
+			},
+			"totalSessions": 12,
+			"totalRecords": 360,
+			"present": 332,
+			"absent": 20,
+			"late": 6,
+			"excused": 2,
+			"attendanceRate": 0.92,
+			"trend": [
+				{
+					"date": "2025-06-05T00:00:00.000Z",
+					"present": 28,
+					"absent": 2,
+					"late": 0,
+					"excused": 0,
+					"attendanceRate": 0.93
+				}
+			]
+		}
+	],
+	"generatedAt": "2025-06-30T12:05:00.000Z"
+}
+```
+
+### GET `/api/reports/attendance/teacher/pdf`
+- **Roles**: `TEACHER`
+- **Description**: Streams the teacher report as a PDF, mirroring the JSON query parameters and scoping rules. Ideal for downloading/shareable documents that include summary lines for each classroom.
+
 ## Assessments (`/api/assessments`)
 
 ### POST `/api/assessments/exams`
