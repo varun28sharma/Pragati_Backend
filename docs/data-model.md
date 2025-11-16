@@ -62,6 +62,7 @@ Represents a unique grade+section within a school-year.
 | `school_id`    | BIGINT FK     | -> `schools.id`                                    |
 | `classroom_id` | BIGINT FK     | -> `classrooms.id`                                 |
 | `code`         | VARCHAR(30)   | human readable ID, unique per school               |
+| `phone_number` | VARCHAR(15)   | optional unique phone, enables per-student lookups  |
 | `first_name`   | VARCHAR(60)   |                                                    |
 | `last_name`    | VARCHAR(60)   |                                                    |
 | `grade_level`  | TINYINT       | cached for quick reads                             |
@@ -69,6 +70,7 @@ Represents a unique grade+section within a school-year.
 | `enrolled_at`  | DATE          |                                                    |
 | `active`       | TINYINT(1)    |                                                    |
 | Indexes        | (`school_id`,`classroom_id`), (`code`,`school_id`)                  |
+| Unique         | (`phone_number`) (nullable)                                         |
 
 ### `teachers`
 | Column       | Type        | Notes                         |
@@ -79,6 +81,22 @@ Represents a unique grade+section within a school-year.
 | `last_name`  | VARCHAR(60) |                              |
 | `email`      | VARCHAR(120)| unique                         |
 | `active`     | TINYINT(1)  |                              |
+
+### `users`
+| Column        | Type         | Notes                                                      |
+|---------------|--------------|------------------------------------------------------------|
+| `id`          | BIGINT PK    |                                                            |
+| `school_id`   | BIGINT FK    | nullable for government-level accounts                     |
+| `email`       | VARCHAR(120) | unique login                                                |
+| `phone_number`| VARCHAR(15)  | optional unique contact                                     |
+| `password_hash`| VARCHAR(255)| bcrypt hash                                                 |
+| `role`        | ENUM         | ('STUDENT','TEACHER','GOVERNMENT','ADMIN')                  |
+| `status`      | ENUM         | ('active','blocked')                                       |
+| `student_id`  | BIGINT FK    | optional pointer to `students.id`                          |
+| `teacher_id`  | BIGINT FK    | optional pointer to `teachers.id`                          |
+| `created_at`  | DATETIME     | default CURRENT_TIMESTAMP                                  |
+| `updated_at`  | DATETIME     | auto-updated                                               |
+| Indexes       | (`role`), unique (`email`), unique (`phone_number`)                        |
 
 ### `subjects`
 | Column      | Type        | Notes                                 |

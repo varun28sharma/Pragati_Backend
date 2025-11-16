@@ -44,6 +44,18 @@ enum GroupVisibility {
   rule_based
 }
 
+enum UserRole {
+  STUDENT
+  TEACHER
+  GOVERNMENT
+  ADMIN
+}
+
+enum UserStatus {
+  active
+  blocked
+}
+
 model School {
   id        BigInt   @id @default(autoincrement())
   name      String   @db.VarChar(120)
@@ -58,6 +70,7 @@ model School {
   notifications Notification[]
   attendanceSessions AttendanceSession[]
   studentGroups StudentGroup[]
+  users     User[]
 }
 
 model Grade {
@@ -106,6 +119,7 @@ model Student {
   schoolId      BigInt
   classroomId   BigInt
   code          String @db.VarChar(30)
+  phoneNumber   String? @db.VarChar(15)
   firstName     String @db.VarChar(60)
   lastName      String @db.VarChar(60)
   gradeLevel    Int
@@ -118,8 +132,10 @@ model Student {
   attendances   StudentAttendance[]
   examResults   StudentExamResult[]
   groupMemberships StudentGroupMember[]
+  user          User? @relation("StudentAccount")
 
   @@unique([schoolId, code])
+  @@unique([phoneNumber])
   @@index([schoolId, classroomId])
 }
 
@@ -134,6 +150,7 @@ model Teacher {
   teacherSubjects TeacherSubject[]
   exams     Exam[]
   notifications Notification[] @relation("TeacherNotifications")
+  users     User[] @relation("TeacherAccounts")
 
   @@index([schoolId])
 }
@@ -301,4 +318,25 @@ model NotificationRead {
   notification    Notification @relation(fields: [notificationId], references: [id])
 
   @@index([notificationId])
+}
+
+model User {
+  id           BigInt @id @default(autoincrement())
+  schoolId     BigInt?
+  email        String  @db.VarChar(120)
+  phoneNumber  String? @db.VarChar(15)
+  passwordHash String  @db.VarChar(255)
+  role         UserRole
+  status       UserStatus @default(active)
+  studentId    BigInt? @unique
+  teacherId    BigInt?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+  school       School? @relation(fields: [schoolId], references: [id])
+  student      Student? @relation("StudentAccount", fields: [studentId], references: [id])
+  teacher      Teacher? @relation("TeacherAccounts", fields: [teacherId], references: [id])
+
+  @@unique([email])
+  @@unique([phoneNumber])
+  @@index([role])
 }

@@ -4,6 +4,7 @@ import { prisma } from "../../lib/prisma";
 import { validateBody } from "../../middleware/validateResource";
 import { asyncHandler } from "../../utils/asyncHandler";
 import { createNotificationSchema } from "./notification.schemas";
+import { authorizeRoles } from "../../middleware/auth";
 
 type TargetType = "student" | "student_group" | "teacher" | "classroom";
 
@@ -11,12 +12,21 @@ export const notificationRouter = Router();
 
 notificationRouter.post(
   "/notifications",
+  authorizeRoles("ADMIN", "GOVERNMENT", "TEACHER"),
   validateBody(createNotificationSchema),
   asyncHandler(async (req, res) => {
     const {
       targets: { studentIds, studentGroupIds, teacherIds, classroomIds },
       ...notificationPayload
     } = req.body;
+
+    if (
+      req.user?.role === "TEACHER" &&
+      req.user.teacher &&
+      req.user.teacher.schoolId !== notificationPayload.schoolId
+    ) {
+      return res.status(403).json({ message: "Forbidden" });
+    }
 
     const targetRows: { notificationId: bigint; targetType: TargetType; targetId: bigint }[] = [];
 

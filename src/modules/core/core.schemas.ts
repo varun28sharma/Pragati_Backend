@@ -40,6 +40,10 @@ export const createStudentSchema = z.object({
   schoolId: z.coerce.bigint(),
   classroomId: z.coerce.bigint(),
   code: z.string().min(3),
+  phoneNumber: z
+    .string()
+    .regex(/^\+?[0-9]{7,15}$/)
+    .optional(),
   firstName: z.string().min(1),
   lastName: z.string().min(1),
   gradeLevel: z.number().int().min(1),
