@@ -144,6 +144,8 @@ model Student {
   classTeacherId BigInt?
   firstName     String @db.VarChar(60)
   lastName      String @db.VarChar(60)
+  gender        String? @db.VarChar(1)
+  dateOfBirth   DateTime? @db.Date
   gradeLevel    Int
   sectionLabel  String @db.VarChar(10)
   enrolledAt    DateTime @db.Date
